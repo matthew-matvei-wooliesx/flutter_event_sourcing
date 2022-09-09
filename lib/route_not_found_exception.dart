@@ -1,0 +1,1 @@
+class RouteNotFoundException implements Exception {}
