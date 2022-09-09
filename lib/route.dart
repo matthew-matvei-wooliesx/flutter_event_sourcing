@@ -1,5 +1,3 @@
-import 'package:uuid/uuid.dart';
-
 class Route {
   final RouteId id;
   _RouteState _state;
@@ -8,7 +6,7 @@ class Route {
 
   Route({
     required InitialRouteSeed initialRouteSeed,
-  })  : id = RouteId(const Uuid().v4().toString()),
+  })  : id = RouteId(initialRouteSeed.routeId),
         _state = _DriverAllocatedRoute(),
         _toteCount = initialRouteSeed.toteCount;
 
@@ -97,9 +95,13 @@ class _InProgressRoute implements _RouteState {
 }
 
 class InitialRouteSeed {
+  final String routeId;
   final int toteCount;
 
-  const InitialRouteSeed({required this.toteCount});
+  const InitialRouteSeed({
+    required this.routeId,
+    required this.toteCount,
+  });
 }
 
 class RouteException implements Exception {
