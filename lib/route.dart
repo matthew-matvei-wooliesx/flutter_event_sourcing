@@ -94,6 +94,8 @@ class _InProgressRoute implements _RouteState {
   RouteStatus get _status => RouteStatus.inProgress;
 }
 
+/// Models what the app would receive from the back end about a new [Route]
+/// it hasn't yet seen.
 class InitialRouteSeed {
   final String routeId;
   final int toteCount;
