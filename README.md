@@ -2,15 +2,13 @@
 
 A simple Flutter project to explore and demonstrate Event Sourcing
 
-## Getting Started
+## Where to Look
 
-This project is a starting point for a Flutter application.
+This project has been bootstrapped in the usual Flutter way. Ignore `lib/main.dart`, look at the other files in that
+folder instead. `route.dart` would likely be the best file to start, then the `in_memory_route_repository.dart`, then
+the use cases after that. 
 
-A few resources to get you started if this is your first Flutter project:
+## How to Look
 
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
-
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Once you have a general idea of what's going on here in this branch, you can contrast this with the `with-event-sourcing`
+branch. There will be a draft PR created to make this comparison easier.
