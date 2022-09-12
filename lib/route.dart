@@ -4,17 +4,35 @@ class Route {
   int _toteCount;
   bool? _driverIsAbleToWork;
 
-  Route({
-    required InitialRouteSeed initialRouteSeed,
-  })  : id = RouteId(initialRouteSeed.routeId),
-        _state = _DriverAllocatedRoute(),
-        _toteCount = initialRouteSeed.toteCount;
+  int _latestEventVersion = 0;
+  final List<Versioned<RouteEvent>> _uncommittedEvents = [];
 
-  Route.fromMemento(RouteMemento memento)
-      : id = memento.routeId,
-        _state = _RouteState._fromStatus(memento.routeStatus),
-        _toteCount = memento.toteCount,
-        _driverIsAbleToWork = memento.driverIsAbleToWork;
+  Route._fromInitialSnapshot(_InitialSnapshot snapshot)
+      : id = RouteId(snapshot.routeId),
+        _state = _DriverAllocatedRoute(),
+        _toteCount = snapshot.toteCount;
+
+  static Route fromEvents(Iterable<RouteEvent> events) {
+    if (events.isEmpty) {
+      throw const RouteException("Cannot hydrate Route from no events");
+    }
+
+    final firstEvent = events.first;
+
+    if (firstEvent is! _InitialSnapshot) {
+      throw const RouteException(
+        "Cannot start hydrating Route without initial snapshot",
+      );
+    }
+
+    final route = Route._fromInitialSnapshot(firstEvent);
+
+    for (final event in events.skip(1)) {
+      route._apply(event);
+    }
+
+    return route;
+  }
 
   void checkIn() {
     if (_state is! _DriverAllocatedRoute) {
@@ -23,7 +41,7 @@ class Route {
       );
     }
 
-    _state = _CheckedInRoute();
+    _emit(_RouteCheckedIn());
   }
 
   /// Throws [RouteException] if loading for this [Route] cannot be completed.
@@ -35,18 +53,57 @@ class Route {
       throw const RouteException("Cannot increase the count of totes");
     }
 
-    _toteCount = revisedToteCount;
-    _driverIsAbleToWork = driverIsAbleToWork;
+    _emit(_LoadingCompleted(
+      revisedToteCount: revisedToteCount,
+      driverIsAbleToWork: driverIsAbleToWork,
+    ));
+  }
+
+  void _emit(RouteEvent event) {
+    _uncommittedEvents.add(
+      Versioned._(version: _latestEventVersion + 1, event: event),
+    );
+    _apply(event);
+  }
+
+  void _apply(RouteEvent event) {
+    if (event is _InitialSnapshot) {
+      throw const RouteException(
+        "Cannot apply initial snapshot, it can only be used to construct a new Route",
+      );
+    }
+
+    if (event is _RouteCheckedIn) {
+      _applyRouteCheckedIn();
+    } else if (event is _LoadingCompleted) {
+      _applyLoadingCompleted(event);
+    } else {
+      throw RouteException(
+        "Attempted to apply unrecognised event type ${event.runtimeType}",
+      );
+    }
+
+    _latestEventVersion++;
+  }
+
+  void _applyRouteCheckedIn() {
+    _state = _CheckedInRoute();
+  }
+
+  void _applyLoadingCompleted(_LoadingCompleted event) {
+    _toteCount = event.revisedToteCount;
+    _driverIsAbleToWork = event.driverIsAbleToWork;
 
     _state = _InProgressRoute();
   }
 
-  RouteMemento toMemento() => RouteMemento(
-        routeId: id,
-        routeStatus: _state._status,
-        toteCount: _toteCount,
-        driverIsAbleToWork: _driverIsAbleToWork,
-      );
+  List<Versioned<RouteEvent>> _flushUncommittedEvents() {
+    final result = List<Versioned<RouteEvent>>.from(_uncommittedEvents);
+
+    _uncommittedEvents.clear();
+
+    return result;
+  }
 }
 
 class RouteId {
@@ -64,47 +121,13 @@ class RouteId {
   int get hashCode => _id.hashCode;
 }
 
-abstract class _RouteState {
-  RouteStatus get _status;
+abstract class _RouteState {}
 
-  static _RouteState _fromStatus(RouteStatus status) {
-    switch (status) {
-      case RouteStatus.driverAllocated:
-        return _DriverAllocatedRoute();
-      case RouteStatus.checkedIn:
-        return _CheckedInRoute();
-      case RouteStatus.inProgress:
-        return _InProgressRoute();
-    }
-  }
-}
+class _DriverAllocatedRoute implements _RouteState {}
 
-class _DriverAllocatedRoute implements _RouteState {
-  @override
-  RouteStatus get _status => RouteStatus.driverAllocated;
-}
+class _CheckedInRoute implements _RouteState {}
 
-class _CheckedInRoute implements _RouteState {
-  @override
-  RouteStatus get _status => RouteStatus.checkedIn;
-}
-
-class _InProgressRoute implements _RouteState {
-  @override
-  RouteStatus get _status => RouteStatus.inProgress;
-}
-
-/// Models what the app would receive from the back end about a new [Route]
-/// it hasn't yet seen.
-class InitialRouteSeed {
-  final String routeId;
-  final int toteCount;
-
-  const InitialRouteSeed({
-    required this.routeId,
-    required this.toteCount,
-  });
-}
+class _InProgressRoute implements _RouteState {}
 
 class RouteException implements Exception {
   final String message;
@@ -112,29 +135,43 @@ class RouteException implements Exception {
   const RouteException(this.message);
 }
 
-/// The Memento pattern here allows us to avoid exposing properties of a
-/// [Route] simply for the purposes of persistence. It
-class RouteMemento {
-  final RouteId routeId;
-  final RouteStatus routeStatus;
-  final int toteCount;
-  final bool? driverIsAbleToWork;
+class Versioned<RouteEvent> {
+  final int version;
+  final RouteEvent event;
 
-  const RouteMemento({
+  const Versioned._({required this.version, required this.event});
+}
+
+abstract class RouteEvent {}
+
+class _InitialSnapshot implements RouteEvent {
+  final String routeId;
+  final int toteCount;
+
+  const _InitialSnapshot({
     required this.routeId,
-    required this.routeStatus,
     required this.toteCount,
-    required this.driverIsAbleToWork,
   });
 }
 
-enum RouteStatus {
-  driverAllocated,
-  checkedIn,
-  inProgress,
+class _RouteCheckedIn implements RouteEvent {}
+
+class _LoadingCompleted implements RouteEvent {
+  final int revisedToteCount;
+  final bool driverIsAbleToWork;
+
+  const _LoadingCompleted({
+    required this.revisedToteCount,
+    required this.driverIsAbleToWork,
+  });
 }
 
 abstract class RouteRepository {
   Future<Route?> findRouteById(RouteId id);
   Future<void> save(Route route);
+}
+
+mixin RouteEventStore {
+  List<Versioned<RouteEvent>> popUncommittedEvents(Route route) =>
+      route._flushUncommittedEvents();
 }

@@ -2,75 +2,55 @@ import 'dart:collection';
 
 import 'package:event_sourcing/route.dart';
 
-/// This in-memory implementation approximates what a document-oriented,
-/// non-Event Sourcing solution may look like. While a simple map is used, this
-/// models the key-value store model that we'd utilise from Firestore.
-class InMemoryDocumentOrientedRouteRepository implements RouteRepository {
-  final Map<RouteId, _RouteDocument> _routeDocumentStore = HashMap();
+/// This in-memory implementation approximates what an Event Sourcing solution
+/// may look like. While a simple map of lists is used, with each list
+/// representing a route's Event Stream, this models the way that we'd utilise
+/// Firestore as an Event Store well enough for this sample.
+class InMemoryEventStoreRouteRepository
+    with RouteEventStore
+    implements RouteRepository {
+  final Map<RouteId, List<_RouteEventDocument>> _routesEventStore = HashMap();
 
   @override
   Future<Route?> findRouteById(RouteId id) async {
-    final foundRouteDocument = _routeDocumentStore[id];
+    final foundRouteEventStream = _routesEventStore[id];
 
-    return foundRouteDocument != null
-        ? Route.fromMemento(foundRouteDocument.toMemento())
+    return foundRouteEventStream != null
+        ? Route.fromEvents(foundRouteEventStream.map((e) => e.toEvent()))
         : null;
   }
 
   @override
   Future<void> save(Route route) async {
-    _routeDocumentStore.update(
+    final uncommittedVersionedEvents = popUncommittedEvents(route).map(
+      (e) => _RouteEventDocument(
+        routeEventId: "${route.id}-Version-${e.version}",
+        event: e.event,
+      ),
+    );
+
+    _routesEventStore.update(
       route.id,
-      (_) => _RouteDocument.fromMemento(route.toMemento()),
-      ifAbsent: () => _RouteDocument.fromMemento(route.toMemento()),
+      (eventStream) => [...eventStream, ...uncommittedVersionedEvents],
+      ifAbsent: () => uncommittedVersionedEvents.toList(),
     );
   }
 }
 
 /// This document model would be a Firestore schema in the real world, but it's
-/// enough to get this sample going with an in-memory implementation.
-class _RouteDocument {
-  final String id;
-  final String status;
-  final int toteCount;
-  final bool? driverIsAbleToWork;
+/// enough to get this sample going with an in-memory implementation. While
+/// we can forget about deserialising [RouteEvent] in this sample, a real-world
+/// version of this would likely want to store the name of the event type so
+/// that the correct runtime type can be resolved during deserialisation.
+class _RouteEventDocument {
+  final String _routeEventId;
+  final RouteEvent _event;
 
-  const _RouteDocument({
-    required this.id,
-    required this.status,
-    required this.toteCount,
-    required this.driverIsAbleToWork,
-  });
+  _RouteEventDocument({
+    required String routeEventId,
+    required RouteEvent event,
+  })  : _routeEventId = routeEventId,
+        _event = event;
 
-  _RouteDocument.fromMemento(RouteMemento memento)
-      : this(
-          id: memento.routeId.toString(),
-          status: memento.routeStatus.toString(),
-          toteCount: memento.toteCount,
-          driverIsAbleToWork: memento.driverIsAbleToWork,
-        );
-
-  RouteMemento toMemento() => RouteMemento(
-        routeId: RouteId(id),
-        routeStatus: _parseRouteStatus(status),
-        toteCount: toteCount,
-        driverIsAbleToWork: driverIsAbleToWork,
-      );
-
-  static RouteStatus _parseRouteStatus(String routeStatus) {
-    switch (routeStatus) {
-      case "RouteStatus.driverAllocated":
-        return RouteStatus.driverAllocated;
-      case "RouteStatus.checkedIn":
-        return RouteStatus.checkedIn;
-      case "RouteStatus.inProgress":
-        return RouteStatus.inProgress;
-      default:
-        throw ArgumentError.value(
-          routeStatus,
-          "routeStatus",
-          "Could not parse RouteStatus from argument",
-        );
-    }
-  }
+  RouteEvent toEvent() => _event;
 }
