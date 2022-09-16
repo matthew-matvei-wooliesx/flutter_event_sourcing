@@ -1,6 +1,11 @@
 import 'dart:collection';
 
 import 'package:event_sourcing/route.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final routeRepositoryProvider = Provider<RouteRepository>(
+  (_) => InMemoryDocumentOrientedRouteRepository(),
+);
 
 /// This in-memory implementation approximates what an Event Sourcing solution
 /// may look like. While a simple map of lists is used, with each list
