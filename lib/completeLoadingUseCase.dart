@@ -1,5 +1,13 @@
+import 'package:event_sourcing/in_memory_route_repository.dart';
 import 'package:event_sourcing/route.dart';
 import 'package:event_sourcing/route_not_found_exception.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final completeLoadingUseCaseProvider = Provider<CompleteLoadingUseCase>(
+  (ref) => CompleteLoadingUseCase(
+    repository: ref.read(routeRepositoryProvider),
+  ),
+);
 
 class CompleteLoadingUseCase {
   final RouteRepository _repository;
@@ -8,7 +16,7 @@ class CompleteLoadingUseCase {
     required RouteRepository repository,
   }) : _repository = repository;
 
-  Future<void> completeLoading({
+  Future<_CompleteLoadingResult> completeLoading({
     required RouteId routeId,
     required bool driverIsAbleToWork,
     required int revisedToteCount,
@@ -25,5 +33,13 @@ class CompleteLoadingUseCase {
     );
 
     await _repository.save(route);
+
+    return _CompleteLoadingResult(loadingCompletedRoute: route);
   }
+}
+
+class _CompleteLoadingResult {
+  final Route loadingCompletedRoute;
+
+  const _CompleteLoadingResult({required this.loadingCompletedRoute});
 }

@@ -16,6 +16,9 @@ class Route {
         _toteCount = memento.toteCount,
         _driverIsAbleToWork = memento.driverIsAbleToWork;
 
+  RouteStatus get status => _state._status;
+  int get toteCount => _toteCount;
+
   void checkIn() {
     if (_state is! _DriverAllocatedRoute) {
       throw const RouteException(
@@ -32,7 +35,9 @@ class Route {
     required int revisedToteCount,
   }) {
     if (revisedToteCount > _toteCount) {
-      throw const RouteException("Cannot increase the count of totes");
+      throw RouteException(
+        "Cannot increase the count of totes to more than $_toteCount",
+      );
     }
 
     _toteCount = revisedToteCount;
