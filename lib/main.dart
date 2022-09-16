@@ -165,8 +165,14 @@ class _MyHomePageState extends ConsumerState<MyHomePage> {
   }
 
   void _setActualNumberOfTotes(String numberOfTotes) {
+    final result = int.tryParse(numberOfTotes, radix: 10);
+
+    if (result == null) {
+      return;
+    }
+
     setState(() {
-      _revisedToteCount = int.parse(numberOfTotes, radix: 10);
+      _revisedToteCount = result;
     });
   }
 }
