@@ -8,7 +8,7 @@ class Route {
   final List<Versioned<RouteEvent>> _uncommittedEvents = [];
 
   Route._fromInitialSnapshot(_InitialSnapshot snapshot)
-      : id = RouteId(snapshot.routeId),
+      : id = snapshot.routeId,
         _state = _DriverAllocatedRoute(),
         _toteCount = snapshot.toteCount;
 
@@ -126,18 +126,35 @@ class RouteId {
   int get hashCode => _id.hashCode;
 }
 
-abstract class _RouteState {}
+abstract class _RouteState {
+  RouteStatus get _status;
+}
 
-class _DriverAllocatedRoute implements _RouteState {}
+class _DriverAllocatedRoute implements _RouteState {
+  @override
+  RouteStatus get _status => RouteStatus.driverAllocated;
+}
 
-class _CheckedInRoute implements _RouteState {}
+class _CheckedInRoute implements _RouteState {
+  @override
+  RouteStatus get _status => RouteStatus.checkedIn;
+}
 
-class _InProgressRoute implements _RouteState {}
+class _InProgressRoute implements _RouteState {
+  @override
+  RouteStatus get _status => RouteStatus.inProgress;
+}
 
 class RouteException implements Exception {
   final String message;
 
   const RouteException(this.message);
+}
+
+enum RouteStatus {
+  driverAllocated,
+  checkedIn,
+  inProgress,
 }
 
 class Versioned<RouteEvent> {
@@ -150,7 +167,7 @@ class Versioned<RouteEvent> {
 abstract class RouteEvent {}
 
 class _InitialSnapshot implements RouteEvent {
-  final String routeId;
+  final RouteId routeId;
   final int toteCount;
 
   const _InitialSnapshot({
@@ -179,4 +196,10 @@ abstract class RouteRepository {
 mixin RouteEventStore {
   List<Versioned<RouteEvent>> popUncommittedEvents(Route route) =>
       route._flushUncommittedEvents();
+
+  RouteEvent seedFakeInitialSnapshot({required RouteId forRouteId}) =>
+      _InitialSnapshot(
+        routeId: forRouteId,
+        toteCount: 10,
+      );
 }

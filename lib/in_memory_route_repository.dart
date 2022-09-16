@@ -4,7 +4,7 @@ import 'package:event_sourcing/route.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final routeRepositoryProvider = Provider<RouteRepository>(
-  (_) => InMemoryDocumentOrientedRouteRepository(),
+  (_) => InMemoryEventStoreRouteRepository(),
 );
 
 /// This in-memory implementation approximates what an Event Sourcing solution
@@ -15,6 +15,23 @@ class InMemoryEventStoreRouteRepository
     with RouteEventStore
     implements RouteRepository {
   final Map<RouteId, List<_RouteEventDocument>> _routesEventStore = HashMap();
+
+  InMemoryEventStoreRouteRepository() {
+    const fakeSeededRouteId = RouteId("ABCD1234");
+    final fakeInitialSnapshot = seedFakeInitialSnapshot(
+      forRouteId: fakeSeededRouteId,
+    );
+
+    _routesEventStore[fakeSeededRouteId] = [
+      _RouteEventDocument(
+        routeEventId: const _RouteEventId(
+          routeId: fakeSeededRouteId,
+          version: 0,
+        ),
+        event: fakeInitialSnapshot,
+      )
+    ];
+  }
 
   @override
   Future<Route?> findRouteById(RouteId id) async {
@@ -29,7 +46,7 @@ class InMemoryEventStoreRouteRepository
   Future<void> save(Route route) async {
     final uncommittedVersionedEvents = popUncommittedEvents(route).map(
       (e) => _RouteEventDocument(
-        routeEventId: "${route.id}-Version-${e.version}",
+        routeEventId: _RouteEventId(routeId: route.id, version: e.version),
         event: e.event,
       ),
     );
@@ -48,14 +65,26 @@ class InMemoryEventStoreRouteRepository
 /// version of this would likely want to store the name of the event type so
 /// that the correct runtime type can be resolved during deserialisation.
 class _RouteEventDocument {
-  final String _routeEventId;
+  final _RouteEventId _routeEventId;
   final RouteEvent _event;
 
   _RouteEventDocument({
-    required String routeEventId,
+    required _RouteEventId routeEventId,
     required RouteEvent event,
   })  : _routeEventId = routeEventId,
         _event = event;
 
   RouteEvent toEvent() => _event;
+}
+
+class _RouteEventId {
+  final RouteId _routeId;
+  final int _version;
+
+  const _RouteEventId({required RouteId routeId, required int version})
+      : _routeId = routeId,
+        _version = version;
+
+  @override
+  String toString() => "$_routeId-Version-$_version";
 }

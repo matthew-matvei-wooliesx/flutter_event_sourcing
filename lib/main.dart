@@ -1,4 +1,3 @@
-import 'package:event_sourcing/api_client.dart';
 import 'package:event_sourcing/checkInUseCase.dart';
 import 'package:event_sourcing/completeLoadingUseCase.dart';
 import 'package:event_sourcing/in_memory_route_repository.dart';
@@ -44,7 +43,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage> {
   void initState() {
     super.initState();
 
-    _fetchRoute().then((route) => {
+    _hydrateRoute().then((route) => {
           setState(() {
             _route = route;
           })
@@ -115,15 +114,12 @@ class _MyHomePageState extends ConsumerState<MyHomePage> {
     );
   }
 
-  Future<domain.Route> _fetchRoute() async {
-    final route = await ref.read(apiClientProvider).getInitialRoute().then(
-          (initialRouteSeed) =>
-              domain.Route(initialRouteSeed: initialRouteSeed),
-        );
+  Future<domain.Route> _hydrateRoute() async {
+    final route = await ref
+        .read(routeRepositoryProvider)
+        .findRouteById(const domain.RouteId("ABCD1234"));
 
-    await ref.read(routeRepositoryProvider).save(route);
-
-    return route;
+    return route!;
   }
 
   void _checkInRoute() async {
