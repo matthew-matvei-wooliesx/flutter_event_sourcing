@@ -18,6 +18,10 @@ class InMemoryEventStoreRouteRepository
   final Map<RouteId, List<_RouteEventDocument>> _routesEventStore = HashMap();
 
   InMemoryEventStoreRouteRepository() {
+    // For the purposes of this sample, we seed the fake route. In reality, we
+    // may migrate to Event Sourcing by building an initial route snapshot based
+    // on backend data, then have the backend systems perform this
+    // initialisation for us.
     const fakeSeededRouteId = RouteId("ABCD1234");
     final fakeInitialSnapshot = seedFakeInitialSnapshot(
       forRouteId: fakeSeededRouteId,

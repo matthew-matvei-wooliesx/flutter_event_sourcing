@@ -4,14 +4,31 @@ class Route {
   int _toteCount;
   bool? _driverIsAbleToWork;
 
+  // The latest event version is used to version all the route events as they're
+  // emitted. This can help keep ordering of events clear, and could potentially
+  // be used for concurrency control, though due to the nature of our app,
+  // concurrency is a low risk.
   int _latestEventVersion = 0;
+
+  // Uncommitted events are buffered here until the Event Store-based route
+  // repository flushes them when saving the route.
   final List<Versioned<RouteEvent>> _uncommittedEvents = [];
 
+  // This sample's implementation assumes the backend is forming the initial
+  // route snapshot, which the remote DB syncs to the local device. As part of
+  // a migration to Event Sourcing though, we could construct a route from what
+  // we receive from the backend via its HTTP API.
   Route._fromInitialSnapshot(_InitialSnapshot snapshot)
       : id = snapshot.routeId,
         _state = _DriverAllocatedRoute(),
         _toteCount = snapshot.toteCount;
 
+  // This is a key premise. We need to be able to build up a route from a series
+  // of ordered events. This method could operate on versioned route events if
+  // we wanted it to ensure all events are received in order, this sample
+  // trusts the repo to return events in order. Generally, this method is a
+  // simple process of asking the route to apply each event in exactly the same
+  // way it would when the event is first emitted by a route object.
   static Route fromEvents(Iterable<RouteEvent> events) {
     if (events.isEmpty) {
       throw const RouteException("Cannot hydrate Route from no events");
@@ -64,6 +81,11 @@ class Route {
     ));
   }
 
+  // As soon as the route object accepts a command, e.g. 'complete loading', it
+  // emits 1 or many relevant events. The events are pushed to a queue of
+  // uncommitted events and immediately applied. This keeps the events the
+  // route has emitted and its current state (derived by applying the events)
+  // in sync.
   void _emit(RouteEvent event) {
     _uncommittedEvents.add(
       Versioned._(version: _latestEventVersion + 1, event: event),
@@ -71,6 +93,14 @@ class Route {
     _apply(event);
   }
 
+  // Events are applied when a route is being hydrated from an existing event
+  // stream, or when this route object emits an event. It's the act of applying
+  // an event that causes state change within this route. Applying the event
+  // should trust that the event does not require any validation - all validation
+  // should occur prior to raising an event in the first place. The only
+  // validation that occurs here is to check that we never apply an initial
+  // snapshot. This was because in this sample an initial snapshot is treated as
+  // just another event, but other ways of modeling this can be found.
   void _apply(RouteEvent event) {
     if (event is _InitialSnapshot) {
       throw const RouteException(
@@ -193,6 +223,12 @@ abstract class RouteRepository {
   Future<void> save(Route route);
 }
 
+// Defining a mixin like this that the repository implementation can use helps
+// keep the Event Sourcing nature of our route aggregate completely contained
+// to the 'route.dart' library and the repository implementation's library. This
+// means that any code that grabs a 'Route' can't attempt to add / remove / even
+// query the uncommitted events the route has queued. But handling encapsulation
+// this way is a suggestion, not a prescribing.
 mixin RouteEventStore {
   List<Versioned<RouteEvent>> popUncommittedEvents(Route route) =>
       route._flushUncommittedEvents();
@@ -204,6 +240,10 @@ mixin RouteEventStore {
       );
 }
 
+// These extension methods are just to help with the data visualisation that
+// we try to do in this sample, since different route event derivations are
+// private to this library. In reality, these extension methods wouldn't exist
+// here at all.
 extension RenderingRouteEvents on RouteEvent {
   String type() {
     if (this is _InitialSnapshot) {
