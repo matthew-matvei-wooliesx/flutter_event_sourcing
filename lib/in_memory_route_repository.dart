@@ -1,10 +1,11 @@
 import 'dart:collection';
 
 import 'package:event_sourcing/route.dart';
+import 'package:flutter/widgets.dart' as widgets;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final routeRepositoryProvider = Provider<RouteRepository>(
-  (_) => InMemoryDocumentOrientedRouteRepository(),
+  (ref) => ref.read(_watchableRepositoryProvider),
 );
 
 /// This in-memory implementation approximates what a document-oriented,
@@ -78,4 +79,54 @@ class _RouteDocument {
         );
     }
   }
+}
+
+class _WatchableRepository extends widgets.ChangeNotifier
+    implements RouteRepository {
+  final RouteRepository _repository;
+  _RouteDocument? latestRouteDocument;
+
+  _WatchableRepository({
+    required RouteRepository repository,
+  }) : _repository = repository;
+
+  @override
+  Future<Route?> findRouteById(RouteId id) => _repository.findRouteById(id);
+
+  @override
+  Future<void> save(Route route) async {
+    await _repository.save(route);
+
+    latestRouteDocument = _RouteDocument.fromMemento(route.toMemento());
+    notifyListeners();
+  }
+}
+
+final _watchableRepositoryProvider =
+    ChangeNotifierProvider<_WatchableRepository>(
+  (_) => _WatchableRepository(
+    repository: InMemoryDocumentOrientedRouteRepository(),
+  ),
+);
+
+class RepositoryVisualiser extends ConsumerWidget {
+  const RepositoryVisualiser({widgets.Key? key}) : super(key: key);
+
+  @override
+  widgets.Widget build(widgets.BuildContext context, WidgetRef ref) {
+    final watchedRepo = ref.watch(_watchableRepositoryProvider);
+
+    return watchedRepo.latestRouteDocument == null
+        ? const widgets.Text("No data saved yet")
+        : widgets.Text(_renderRoute(watchedRepo.latestRouteDocument!));
+  }
+
+  String _renderRoute(_RouteDocument route) => """
+    {
+      "id": "${route.id}",
+      "status": "${route.status}",
+      "toteCount": ${route.toteCount},
+      "driverIsAbleToWork": ${route.driverIsAbleToWork}
+    }
+    """;
 }
