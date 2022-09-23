@@ -1,10 +1,11 @@
 import 'dart:collection';
 
 import 'package:event_sourcing/route.dart';
+import 'package:flutter/widgets.dart' as widgets;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final routeRepositoryProvider = Provider<RouteRepository>(
-  (_) => InMemoryEventStoreRouteRepository(),
+  (ref) => ref.read(_watchableRepositoryProvider),
 );
 
 /// This in-memory implementation approximates what an Event Sourcing solution
@@ -87,4 +88,66 @@ class _RouteEventId {
 
   @override
   String toString() => "$_routeId-Version-$_version";
+}
+
+class _WatchableRepository extends widgets.ChangeNotifier
+    implements RouteRepository {
+  final InMemoryEventStoreRouteRepository _repository;
+  List<_RouteEventDocument>? latestRouteEventDocuments;
+
+  _WatchableRepository({
+    required InMemoryEventStoreRouteRepository repository,
+  }) : _repository = repository;
+
+  @override
+  Future<Route?> findRouteById(RouteId id) {
+    latestRouteEventDocuments =
+        _repository._routesEventStore.entries.first.value;
+
+    notifyListeners();
+
+    return _repository.findRouteById(id);
+  }
+
+  @override
+  Future<void> save(Route route) async {
+    await _repository.save(route);
+
+    latestRouteEventDocuments =
+        _repository._routesEventStore.entries.first.value;
+
+    notifyListeners();
+  }
+}
+
+final _watchableRepositoryProvider =
+    ChangeNotifierProvider<_WatchableRepository>(
+  (_) => _WatchableRepository(
+    repository: InMemoryEventStoreRouteRepository(),
+  ),
+);
+
+class RepositoryVisualiser extends ConsumerWidget {
+  const RepositoryVisualiser({widgets.Key? key}) : super(key: key);
+
+  @override
+  widgets.Widget build(widgets.BuildContext context, WidgetRef ref) {
+    final watchedRepo = ref.watch(_watchableRepositoryProvider);
+
+    return watchedRepo.latestRouteEventDocuments == null
+        ? const widgets.Text("No data saved yet")
+        : widgets.Column(
+            children: watchedRepo.latestRouteEventDocuments!
+                .map((e) => widgets.Text(_renderRouteEventDocument(e)))
+                .toList(),
+          );
+  }
+
+  String _renderRouteEventDocument(_RouteEventDocument routeEvent) => """
+    {
+      "id": "${routeEvent._routeEventId}",
+      "type": "${routeEvent._event.type()}",
+      "event": ${routeEvent._event.render()}
+    }
+    """;
 }

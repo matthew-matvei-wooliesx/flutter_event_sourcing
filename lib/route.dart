@@ -203,3 +203,41 @@ mixin RouteEventStore {
         toteCount: 10,
       );
 }
+
+extension RenderingRouteEvents on RouteEvent {
+  String type() {
+    if (this is _InitialSnapshot) {
+      return "InitialSnapshot";
+    } else if (this is _RouteCheckedIn) {
+      return "RouteCheckedIn";
+    } else if (this is _LoadingCompleted) {
+      return "LoadingCompleted";
+    } else {
+      throw UnsupportedError(
+        "The type method was called on an unsupported route event",
+      );
+    }
+  }
+
+  String render() {
+    if (this is _InitialSnapshot) {
+      final initialSnapshot = this as _InitialSnapshot;
+      return """{
+          "routeId": "${initialSnapshot.routeId}",
+          "toteCount": ${initialSnapshot.toteCount}
+        }""";
+    } else if (this is _RouteCheckedIn) {
+      return "{ }";
+    } else if (this is _LoadingCompleted) {
+      final loadingCompleted = this as _LoadingCompleted;
+      return """{
+          "revisedToteCount": ${loadingCompleted.revisedToteCount},
+          "driverIsAbleToWork": ${loadingCompleted.driverIsAbleToWork}
+        }""";
+    } else {
+      throw UnsupportedError(
+        "The render method was called on an unsupported route event",
+      );
+    }
+  }
+}

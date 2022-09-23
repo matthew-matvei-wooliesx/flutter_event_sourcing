@@ -57,58 +57,66 @@ class _MyHomePageState extends ConsumerState<MyHomePage> {
         title: Text(widget.title),
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.only(bottom: 20),
-              child: _route == null
-                  ? const Text("Loading Route")
-                  : Text("Route ${_route!.id} is currently ${_route!.status}"),
-            ),
-            if (_route?.status == domain.RouteStatus.driverAllocated)
-              ElevatedButton(
-                onPressed: _checkInRoute,
-                child: const Text("Check in"),
-              ),
-            if (_route?.status == domain.RouteStatus.checkedIn) ...[
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
               Padding(
-                padding: const EdgeInsets.all(50),
-                child: CheckboxListTile(
-                  value: _driverIsReadyForWork,
-                  onChanged: _toggleDriverIsReadyForWork,
-                  title: const Text("Is driver ready for work?"),
+                padding: const EdgeInsets.only(bottom: 20),
+                child: _route == null
+                    ? const Text("Loading Route")
+                    : Text(
+                        "Route ${_route!.id} is currently ${_route!.status}"),
+              ),
+              if (_route?.status == domain.RouteStatus.driverAllocated)
+                ElevatedButton(
+                  onPressed: _checkInRoute,
+                  child: const Text("Check in"),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(50),
-                child: TextField(
-                  decoration: const InputDecoration(
-                    label: Text("Number of actual totes"),
+              if (_route?.status == domain.RouteStatus.checkedIn) ...[
+                Padding(
+                  padding: const EdgeInsets.all(50),
+                  child: CheckboxListTile(
+                    value: _driverIsReadyForWork,
+                    onChanged: _toggleDriverIsReadyForWork,
+                    title: const Text("Is driver ready for work?"),
                   ),
-                  keyboardType: TextInputType.number,
-                  onChanged: _setActualNumberOfTotes,
                 ),
-              ),
-              if (_revisedToteCount != null)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 50, bottom: 50),
-                    child: ElevatedButton(
-                      onPressed: _completeLoadingRoute,
-                      child: const Text("Complete loading"),
+                Padding(
+                  padding: const EdgeInsets.all(50),
+                  child: TextField(
+                    decoration: const InputDecoration(
+                      label: Text("Number of actual totes"),
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: _setActualNumberOfTotes,
+                  ),
+                ),
+                if (_revisedToteCount != null)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 50, bottom: 50),
+                      child: ElevatedButton(
+                        onPressed: _completeLoadingRoute,
+                        child: const Text("Complete loading"),
+                      ),
                     ),
                   ),
+              ],
+              if (_route?.status == domain.RouteStatus.inProgress)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 50),
+                    child: Text("Have a nice day!"),
+                  ),
                 ),
+              const Padding(
+                padding: EdgeInsets.only(top: 50, bottom: 25),
+                child: Text("Data visualiser"),
+              ),
+              const RepositoryVisualiser()
             ],
-            if (_route?.status == domain.RouteStatus.inProgress)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.only(top: 50),
-                  child: Text("Have a nice day!"),
-                ),
-              )
-          ],
+          ),
         ),
       ),
     );
