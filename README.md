@@ -11,4 +11,4 @@ the use cases after that.
 ## How to Look
 
 Once you have a general idea of what's going on here in this branch, you can contrast this with the `with-event-sourcing`
-branch. There will be a draft PR created to make this comparison easier.
+branch. There is a draft PR to make the comparison easier available [here](https://github.com/matthew-matvei-wooliesx/flutter_event_sourcing/pull/1).
