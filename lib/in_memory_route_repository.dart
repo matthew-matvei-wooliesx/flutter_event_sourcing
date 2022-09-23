@@ -81,6 +81,8 @@ class _RouteDocument {
   }
 }
 
+// This only exists to assist with the widget here that visualises the data in
+// the repo for this sample's purposes.
 class _WatchableRepository extends widgets.ChangeNotifier
     implements RouteRepository {
   final RouteRepository _repository;
@@ -109,6 +111,10 @@ final _watchableRepositoryProvider =
   ),
 );
 
+// This widget only exists to help visualise (albeit not in a very pretty way)
+// the nature of the data as it sits in the DB. Since this repository
+// implementation is document-oriented in nature, it displays the data as a
+// JSON object.
 class RepositoryVisualiser extends ConsumerWidget {
   const RepositoryVisualiser({widgets.Key? key}) : super(key: key);
 
