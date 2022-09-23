@@ -135,8 +135,8 @@ final _watchableRepositoryProvider =
 
 // This widget only exists to help visualise (albeit not in a very pretty way)
 // the nature of the data as it sits in the DB. Since this repository
-// implementation is document-oriented in nature, it displays the data as a
-// JSON object.
+// implementation is an event stream in nature, it displays the events as a
+// list of JSON objects.
 class RepositoryVisualiser extends ConsumerWidget {
   const RepositoryVisualiser({widgets.Key? key}) : super(key: key);
 
